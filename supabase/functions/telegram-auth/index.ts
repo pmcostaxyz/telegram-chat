@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+// Ensure crypto is available globally for telegram library
+import { crypto as denoHttps } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+if (typeof globalThis.crypto === 'undefined') {
+  // @ts-ignore
+  globalThis.crypto = denoHttps;
+}
+
 import telegram from "https://esm.sh/telegram@2.22.2";
 
 const { TelegramClient, sessions, Api } = telegram;
