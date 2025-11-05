@@ -17,6 +17,7 @@ const Index = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -46,6 +47,41 @@ const Index = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchMessages();
+    }
+  }, [user]);
+
+  const fetchMessages = async () => {
+    if (!user) return;
+    
+    setLoadingMessages(true);
+    const { data, error } = await supabase
+      .from("scheduled_messages")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error loading messages",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      const formattedMessages: Message[] = (data || []).map((msg) => ({
+        id: msg.id,
+        recipient: msg.recipient,
+        text: msg.message_text,
+        scheduledTime: msg.scheduled_time,
+        status: msg.status as "scheduled" | "sent" | "failed",
+      }));
+      setMessages(formattedMessages);
+    }
+    setLoadingMessages(false);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -96,7 +132,7 @@ const Index = () => {
             status: "sent",
           });
 
-        setMessages([message, ...messages]);
+        fetchMessages();
       } catch (err: any) {
         toast({
           title: "Failed to send message",
@@ -131,12 +167,28 @@ const Index = () => {
         description: `Will be sent at ${new Date(message.scheduledTime).toLocaleString()}`,
       });
 
-      setMessages([message, ...messages]);
+      fetchMessages();
     }
   };
 
-  const handleDeleteMessage = (id: string) => {
-    setMessages(messages.filter((msg) => msg.id !== id));
+  const handleDeleteMessage = async (id: string) => {
+    const { error } = await supabase
+      .from("scheduled_messages")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error deleting message",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Message deleted",
+      });
+      fetchMessages();
+    }
   };
 
   if (loading) {

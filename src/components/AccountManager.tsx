@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, User, Trash2, Eye } from "lucide-react";
+import { Plus, User, Trash2, Eye, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import AddAccountDialog from "./AddAccountDialog";
 import AccountDetailsDialog from "./AccountDetailsDialog";
+import TelegramAuthDialog from "./TelegramAuthDialog";
 
 interface TelegramAccount {
   id: string;
@@ -28,6 +29,7 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<TelegramAccount | null>(null);
   const { toast } = useToast();
 
@@ -60,6 +62,11 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
   const handleViewDetails = (account: TelegramAccount) => {
     setSelectedAccount(account);
     setShowDetailsDialog(true);
+  };
+
+  const handleActivateAccount = (account: TelegramAccount) => {
+    setSelectedAccount(account);
+    setShowAuthDialog(true);
   };
 
   const handleDeleteAccount = async (accountId: string) => {
@@ -136,8 +143,10 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium">{account.account_name}</p>
-                      {account.is_active && (
+                      {account.is_active ? (
                         <Badge className="bg-primary">Active</Badge>
+                      ) : (
+                        <Badge variant="outline">Inactive</Badge>
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -145,6 +154,20 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    {!account.is_active && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleActivateAccount(account);
+                        }}
+                        className="gap-2"
+                      >
+                        <Shield className="h-4 w-4" />
+                        Activate
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -186,6 +209,14 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
         open={showDetailsDialog}
         onOpenChange={setShowDetailsDialog}
         onAccountUpdated={fetchAccounts}
+      />
+
+      <TelegramAuthDialog
+        accountId={selectedAccount?.id || null}
+        accountName={selectedAccount?.account_name || ""}
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        onAuthSuccess={fetchAccounts}
       />
     </>
   );

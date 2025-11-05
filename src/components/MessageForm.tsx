@@ -13,7 +13,7 @@ interface Message {
   text: string;
   recipient: string;
   scheduledTime?: string;
-  status: "scheduled" | "sent";
+  status: "scheduled" | "sent" | "failed";
 }
 
 interface MessageFormProps {
