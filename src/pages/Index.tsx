@@ -62,28 +62,77 @@ const Index = () => {
       return;
     }
 
-    // Save to database
-    const { error } = await supabase
-      .from("scheduled_messages")
-      .insert({
-        user_id: user.id,
-        telegram_account_id: selectedAccountId,
-        recipient: message.recipient,
-        message_text: message.text,
-        scheduled_time: message.scheduledTime || new Date().toISOString(),
-        status: message.scheduledTime ? "pending" : "sent",
-      });
+    // If sending now, call the edge function
+    if (!message.scheduledTime) {
+      try {
+        const { data, error } = await supabase.functions.invoke('telegram-send-message', {
+          body: {
+            accountId: selectedAccountId,
+            recipient: message.recipient,
+            message: message.text,
+          },
+        });
 
-    if (error) {
+        if (error) throw error;
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to send message');
+        }
+
+        toast({
+          title: "Message sent!",
+          description: "Your message has been sent via Telegram",
+        });
+
+        // Save to database with sent status
+        await supabase
+          .from("scheduled_messages")
+          .insert({
+            user_id: user.id,
+            telegram_account_id: selectedAccountId,
+            recipient: message.recipient,
+            message_text: message.text,
+            scheduled_time: new Date().toISOString(),
+            status: "sent",
+          });
+
+        setMessages([message, ...messages]);
+      } catch (err: any) {
+        toast({
+          title: "Failed to send message",
+          description: err.message || "An error occurred",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Save scheduled message to database
+      const { error } = await supabase
+        .from("scheduled_messages")
+        .insert({
+          user_id: user.id,
+          telegram_account_id: selectedAccountId,
+          recipient: message.recipient,
+          message_text: message.text,
+          scheduled_time: message.scheduledTime,
+          status: "scheduled",
+        });
+
+      if (error) {
+        toast({
+          title: "Error scheduling message",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Error saving message",
-        description: error.message,
-        variant: "destructive",
+        title: "Message scheduled!",
+        description: `Will be sent at ${new Date(message.scheduledTime).toLocaleString()}`,
       });
-      return;
-    }
 
-    setMessages([message, ...messages]);
+      setMessages([message, ...messages]);
+    }
   };
 
   const handleDeleteMessage = (id: string) => {
