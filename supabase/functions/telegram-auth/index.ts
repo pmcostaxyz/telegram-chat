@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { TelegramClient } from "https://esm.sh/telegram@2.22.2/client/TelegramClient";
-import { StringSession } from "https://esm.sh/telegram@2.22.2/sessions/index";
-import { Api } from "https://esm.sh/telegram@2.22.2/tl/api";
+import { TelegramClient } from "https://esm.sh/telegram@2.22.2";
+import { StringSession } from "https://esm.sh/telegram@2.22.2/sessions";
+import { Api } from "https://esm.sh/telegram@2.22.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
