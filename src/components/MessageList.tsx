@@ -55,7 +55,8 @@ const MessageList = ({ messages, onDeleteMessage }: MessageListProps) => {
                   </span>
                 )}
               </div>
-              <p className="text-sm text-foreground">{msg.text}</p>
+              <p className="text-sm font-medium text-foreground">To: {msg.recipient}</p>
+              <p className="text-sm text-muted-foreground">{msg.text}</p>
             </div>
             <Button
               variant="ghost"

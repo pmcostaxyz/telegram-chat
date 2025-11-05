@@ -6,10 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
 
 interface Message {
   id: string;
   text: string;
+  recipient: string;
   scheduledTime?: string;
   status: "scheduled" | "sent";
 }
@@ -19,29 +21,48 @@ interface MessageFormProps {
   disabled: boolean;
 }
 
+const messageSchema = z.object({
+  message: z.string()
+    .trim()
+    .min(1, { message: "Message cannot be empty" })
+    .max(4096, { message: "Message must be less than 4096 characters" }),
+  recipient: z.string()
+    .trim()
+    .min(1, { message: "Recipient cannot be empty" })
+    .max(100, { message: "Recipient must be less than 100 characters" }),
+  scheduledTime: z.string().optional(),
+});
+
 const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
   const [message, setMessage] = useState("");
+  const [recipient, setRecipient] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const { toast } = useToast();
 
   const handleSendNow = () => {
-    if (!message.trim()) {
-      toast({
-        title: "Empty message",
-        description: "Please enter a message to send",
-        variant: "destructive",
-      });
-      return;
+    try {
+      messageSchema.parse({ message, recipient, scheduledTime: undefined });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation error",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const newMessage: Message = {
       id: Date.now().toString(),
       text: message,
+      recipient,
       status: "sent",
     };
 
     onSendMessage(newMessage);
     setMessage("");
+    setRecipient("");
     toast({
       title: "Message sent!",
       description: "Your message has been sent to Telegram",
@@ -49,10 +70,33 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
   };
 
   const handleSchedule = () => {
-    if (!message.trim() || !scheduledTime) {
+    try {
+      messageSchema.parse({ message, recipient, scheduledTime });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation error",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (!scheduledTime) {
       toast({
-        title: "Missing information",
-        description: "Please enter both message and schedule time",
+        title: "Missing schedule time",
+        description: "Please select when to send the message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const scheduledDate = new Date(scheduledTime);
+    if (scheduledDate <= new Date()) {
+      toast({
+        title: "Invalid time",
+        description: "Schedule time must be in the future",
         variant: "destructive",
       });
       return;
@@ -61,16 +105,18 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       text: message,
+      recipient,
       scheduledTime,
       status: "scheduled",
     };
 
     onSendMessage(newMessage);
     setMessage("");
+    setRecipient("");
     setScheduledTime("");
     toast({
       title: "Message scheduled!",
-      description: `Will be sent on ${new Date(scheduledTime).toLocaleString()}`,
+      description: `Will be sent on ${scheduledDate.toLocaleString()}`,
     });
   };
 
@@ -82,6 +128,20 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
+          <Label htmlFor="recipient">Recipient</Label>
+          <Input
+            id="recipient"
+            placeholder="@username or phone number"
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            disabled={disabled}
+            maxLength={100}
+          />
+          <p className="text-xs text-muted-foreground">
+            Enter username (with @) or phone number with country code
+          </p>
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="message">Message</Label>
           <Textarea
             id="message"
@@ -90,7 +150,11 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
             disabled={disabled}
+            maxLength={4096}
           />
+          <p className="text-xs text-muted-foreground">
+            {message.length}/4096 characters
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="scheduledTime">Schedule Time (Optional)</Label>
@@ -100,6 +164,7 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
             value={scheduledTime}
             onChange={(e) => setScheduledTime(e.target.value)}
             disabled={disabled}
+            min={new Date().toISOString().slice(0, 16)}
           />
         </div>
         <div className="flex gap-2">
