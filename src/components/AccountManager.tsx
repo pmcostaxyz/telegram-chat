@@ -2,16 +2,20 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, User, Trash2 } from "lucide-react";
+import { Plus, User, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import AddAccountDialog from "./AddAccountDialog";
+import AccountDetailsDialog from "./AccountDetailsDialog";
 
 interface TelegramAccount {
   id: string;
   account_name: string;
   phone_number: string;
+  api_id: string;
+  api_hash: string;
   is_active: boolean;
+  created_at: string;
 }
 
 interface AccountManagerProps {
@@ -23,6 +27,8 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
   const [accounts, setAccounts] = useState<TelegramAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<TelegramAccount | null>(null);
   const { toast } = useToast();
 
   const fetchAccounts = async () => {
@@ -50,6 +56,11 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
   useEffect(() => {
     fetchAccounts();
   }, []);
+
+  const handleViewDetails = (account: TelegramAccount) => {
+    setSelectedAccount(account);
+    setShowDetailsDialog(true);
+  };
 
   const handleDeleteAccount = async (accountId: string) => {
     const { error } = await supabase
@@ -133,17 +144,30 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
                       {account.phone_number}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteAccount(account.id);
-                    }}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDetails(account);
+                      }}
+                      className="text-muted-foreground hover:text-primary"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAccount(account.id);
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -155,6 +179,13 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onAccountAdded={fetchAccounts}
+      />
+
+      <AccountDetailsDialog
+        account={selectedAccount}
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        onAccountUpdated={fetchAccounts}
       />
     </>
   );
