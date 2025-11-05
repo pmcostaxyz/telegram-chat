@@ -1,1 +1,10 @@
 project_id = "rydapefetpmxipkpaplr"
+
+[functions.telegram-auth]
+verify_jwt = true
+
+[functions.telegram-send-message]
+verify_jwt = true
+
+[functions.telegram-check-scheduled]
+verify_jwt = false
