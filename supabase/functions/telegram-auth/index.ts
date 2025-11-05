@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Client, StorageMemory } from "https://deno.land/x/mtkruto/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +30,16 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { action, accountId, phoneCode } = await req.json();
+    const requestSchema = z.object({
+      action: z.enum(['send_code', 'verify_code', 'verify_password']),
+      accountId: z.string().uuid(),
+      phoneCode: z.object({
+        hash: z.string().optional(),
+        code: z.string().min(1).max(10).optional(),
+      }).optional(),
+    });
+
+    const { action, accountId, phoneCode } = requestSchema.parse(await req.json());
 
     console.log('Telegram auth action:', action, 'for account:', accountId);
 
@@ -148,8 +158,13 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Telegram auth error:', error);
+    
+    // Return generic error message, log details internally
+    const isValidationError = error.name === 'ZodError';
     return new Response(
-      JSON.stringify({ error: error.message || String(error) }),
+      JSON.stringify({ 
+        error: isValidationError ? 'Invalid request data' : 'Authentication failed'
+      }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

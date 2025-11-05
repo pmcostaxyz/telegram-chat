@@ -13,6 +13,21 @@ serve(async (req) => {
   }
 
   try {
+    // Verify cron secret token for authentication
+    const authToken = req.headers.get('X-Cron-Secret');
+    const expectedToken = Deno.env.get('CRON_SECRET_TOKEN');
+    
+    if (!expectedToken || authToken !== expectedToken) {
+      console.error('Unauthorized access attempt to scheduled checker');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -124,7 +139,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Check scheduled messages error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || String(error) }),
+      JSON.stringify({ error: 'Failed to process scheduled messages' }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
