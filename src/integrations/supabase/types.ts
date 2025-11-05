@@ -14,7 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scheduled_messages: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          message_text: string
+          recipient: string
+          scheduled_time: string
+          status: string
+          telegram_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_text: string
+          recipient: string
+          scheduled_time: string
+          status?: string
+          telegram_account_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_text?: string
+          recipient?: string
+          scheduled_time?: string
+          status?: string
+          telegram_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_telegram_account_id_fkey"
+            columns: ["telegram_account_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_accounts: {
+        Row: {
+          account_name: string
+          api_hash: string
+          api_id: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          phone_number: string
+          session_data: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          api_hash: string
+          api_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          phone_number: string
+          session_data?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          api_hash?: string
+          api_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          phone_number?: string
+          session_data?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
