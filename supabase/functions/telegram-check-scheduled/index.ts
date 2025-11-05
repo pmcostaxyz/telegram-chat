@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import telegram from "https://esm.sh/telegram@2.22.2";
-
-const { TelegramClient, sessions } = telegram;
-const { StringSession } = sessions;
+import { Client, StorageMemory } from "jsr:@mtkruto/mtkruto@0.74.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,10 +19,13 @@ serve(async (req) => {
 
     console.log('Checking for scheduled messages...');
 
-    // Fetch messages that are scheduled and due
+    // Get messages that are due to be sent
     const { data: messages, error: messagesError } = await supabase
       .from('scheduled_messages')
-      .select('*, telegram_accounts(*)')
+      .select(`
+        *,
+        telegram_accounts!inner(*)
+      `)
       .eq('status', 'scheduled')
       .lte('scheduled_time', new Date().toISOString());
 
@@ -33,70 +33,82 @@ serve(async (req) => {
       throw messagesError;
     }
 
-    if (!messages || messages.length === 0) {
-      console.log('No scheduled messages to send');
-      return new Response(
-        JSON.stringify({ message: 'No scheduled messages to send' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Found ${messages.length} messages to send`);
+    console.log(`Found ${messages?.length || 0} messages to send`);
 
     const results = [];
 
-    for (const msg of messages) {
+    for (const message of messages || []) {
       try {
-        const account = msg.telegram_accounts;
-        
-        if (!account || !account.session_data || !account.is_active) {
-          console.error(`Account not ready for message ${msg.id}`);
+        const account = message.telegram_accounts;
+
+        if (!account.is_active || !account.session_data) {
+          console.log(`Skipping message ${message.id}: account not active or not authenticated`);
+          
+          // Update message status to failed
           await supabase
             .from('scheduled_messages')
             .update({
               status: 'failed',
-              error_message: 'Account not authenticated or inactive',
+              error_message: 'Account not active or not authenticated',
             })
-            .eq('id', msg.id);
+            .eq('id', message.id);
+
+          results.push({
+            id: message.id,
+            success: false,
+            error: 'Account not active or not authenticated',
+          });
           continue;
         }
 
-        // Initialize Telegram client
-        const stringSession = new StringSession(account.session_data);
-        const client = new TelegramClient(
-          stringSession,
-          parseInt(account.api_id),
-          account.api_hash,
-          {
-            connectionRetries: 5,
-          }
-        );
+        // Initialize MTKruto client
+        const client = new Client({
+          storage: new StorageMemory(),
+          apiId: parseInt(account.api_id),
+          apiHash: account.api_hash,
+        });
 
+        // Import the session
+        await client.importAuthString(account.session_data);
         await client.connect();
-        await client.sendMessage(msg.recipient, { message: msg.message_text });
+
+        // Send message
+        await client.sendMessage(message.recipient, message.message_text);
+
         await client.disconnect();
 
-        // Update message status
-        await supabase
+        // Update message status to sent
+        const { error: updateError } = await supabase
           .from('scheduled_messages')
           .update({ status: 'sent' })
-          .eq('id', msg.id);
+          .eq('id', message.id);
 
-        results.push({ id: msg.id, status: 'sent' });
-        console.log(`Message ${msg.id} sent successfully`);
+        if (updateError) {
+          console.error('Failed to update message status:', updateError);
+        }
 
+        console.log(`Message ${message.id} sent successfully`);
+        results.push({
+          id: message.id,
+          success: true,
+        });
       } catch (error: any) {
-        console.error(`Failed to send message ${msg.id}:`, error);
-        
+        console.error(`Error sending message ${message.id}:`, error);
+
+        // Update message status to failed
         await supabase
           .from('scheduled_messages')
           .update({
             status: 'failed',
-            error_message: error.message,
+            error_message: error.message || String(error),
           })
-          .eq('id', msg.id);
+          .eq('id', message.id);
 
-        results.push({ id: msg.id, status: 'failed', error: error.message });
+        results.push({
+          id: message.id,
+          success: false,
+          error: error.message || String(error),
+        });
       }
     }
 
@@ -112,7 +124,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Check scheduled messages error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || String(error) }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

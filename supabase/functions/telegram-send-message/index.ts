@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import telegram from "https://esm.sh/telegram@2.22.2";
-
-const { TelegramClient, sessions } = telegram;
-const { StringSession } = sessions;
+import { Client, StorageMemory } from "jsr:@mtkruto/mtkruto@0.74.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,21 +50,19 @@ serve(async (req) => {
       throw new Error('Account not authenticated. Please authenticate first.');
     }
 
-    // Initialize Telegram client
-    const stringSession = new StringSession(account.session_data);
-    const client = new TelegramClient(
-      stringSession,
-      parseInt(account.api_id),
-      account.api_hash,
-      {
-        connectionRetries: 5,
-      }
-    );
+    // Initialize MTKruto client
+    const client = new Client({
+      storage: new StorageMemory(),
+      apiId: parseInt(account.api_id),
+      apiHash: account.api_hash,
+    });
 
+    // Import the session
+    await client.importAuthString(account.session_data);
     await client.connect();
 
-    // Send message
-    await client.sendMessage(recipient, { message });
+    // Send message using high-level API
+    await client.sendMessage(recipient, message);
 
     await client.disconnect();
 
@@ -97,7 +92,7 @@ serve(async (req) => {
     console.error('Telegram send message error:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || String(error) }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
