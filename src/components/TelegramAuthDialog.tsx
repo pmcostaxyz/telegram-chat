@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
@@ -19,76 +17,33 @@ interface TelegramAuthDialogProps {
 const TelegramAuthDialog = ({ accountId, accountName, open, onOpenChange, onAuthSuccess }: TelegramAuthDialogProps) => {
   const [step, setStep] = useState<"initial" | "code">("initial");
   const [loading, setLoading] = useState(false);
-  const [phoneCodeHash, setPhoneCodeHash] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const { toast } = useToast();
 
-  const handleSendCode = async () => {
+  const handleSendCode = () => {
     if (!accountId) return;
 
     setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('telegram-auth', {
-        body: {
-          action: 'send_code',
-          accountId,
-        },
-      });
-
-      if (error) throw error;
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to send verification code');
-      }
-
-      setPhoneCodeHash(data.phoneCodeHash);
+    
+    // Mock sending code
+    setTimeout(() => {
       setStep("code");
+      setLoading(false);
       toast({
         title: "Verification code sent",
         description: "Check your Telegram app for the code",
       });
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err.message || "Failed to send verification code",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }, 1000);
   };
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCode = () => {
     if (!accountId || !verificationCode || verificationCode.length !== 5) return;
 
     setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('telegram-auth', {
-        body: {
-          action: 'verify_code',
-          accountId,
-          phoneCode: {
-            code: verificationCode,
-            hash: phoneCodeHash,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.requires2FA) {
-        toast({
-          title: "2FA Required",
-          description: "Please authenticate via the official Telegram app first",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to verify code');
-      }
-
+    
+    // Mock verification
+    setTimeout(() => {
+      setLoading(false);
       toast({
         title: "Authentication successful!",
         description: "Your Telegram account is now active",
@@ -98,15 +53,7 @@ const TelegramAuthDialog = ({ accountId, accountName, open, onOpenChange, onAuth
       onOpenChange(false);
       setStep("initial");
       setVerificationCode("");
-    } catch (err: any) {
-      toast({
-        title: "Verification failed",
-        description: err.message || "Invalid verification code",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }, 1000);
   };
 
   const handleClose = () => {

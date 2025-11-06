@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const accountSchema = z.object({
@@ -16,10 +15,20 @@ const accountSchema = z.object({
   apiHash: z.string().trim().min(32, { message: "API Hash must be at least 32 characters" }).max(100),
 });
 
+interface TelegramAccount {
+  id: string;
+  account_name: string;
+  phone_number: string;
+  api_id: string;
+  api_hash: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 interface AddAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAccountAdded: () => void;
+  onAccountAdded: (account: TelegramAccount) => void;
 }
 
 const AddAccountDialog = ({ open, onOpenChange, onAccountAdded }: AddAccountDialogProps) => {
@@ -30,7 +39,7 @@ const AddAccountDialog = ({ open, onOpenChange, onAccountAdded }: AddAccountDial
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     try {
       accountSchema.parse({ accountName, phoneNumber, apiId, apiHash });
     } catch (error) {
@@ -46,59 +55,32 @@ const AddAccountDialog = ({ open, onOpenChange, onAccountAdded }: AddAccountDial
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to add accounts",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("telegram_accounts")
-      .insert({
-        user_id: user.id,
+    // Mock account creation
+    setTimeout(() => {
+      const newAccount: TelegramAccount = {
+        id: Date.now().toString(),
         account_name: accountName,
         phone_number: phoneNumber,
         api_id: apiId,
         api_hash: apiHash,
         is_active: false,
+        created_at: new Date().toISOString(),
+      };
+
+      toast({
+        title: "Account added!",
+        description: "Your Telegram account has been connected",
       });
 
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes("duplicate key")) {
-        toast({
-          title: "Account exists",
-          description: "This phone number is already registered",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error adding account",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-      return;
-    }
-
-    toast({
-      title: "Account added!",
-      description: "Your Telegram account has been connected",
-    });
-
-    // Reset form
-    setAccountName("");
-    setPhoneNumber("");
-    setApiId("");
-    setApiHash("");
-    onOpenChange(false);
-    onAccountAdded();
+      // Reset form
+      setAccountName("");
+      setPhoneNumber("");
+      setApiId("");
+      setApiHash("");
+      setLoading(false);
+      onOpenChange(false);
+      onAccountAdded(newAccount);
+    }, 500);
   };
 
   return (

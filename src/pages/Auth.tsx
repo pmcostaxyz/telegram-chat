@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -25,15 +24,6 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-  }, [navigate]);
-
   const handleSignUp = async () => {
     try {
       authSchema.parse({ email, password, fullName });
@@ -49,42 +39,15 @@ const Auth = () => {
     }
 
     setLoading(true);
-    const redirectUrl = `${window.location.origin}/`;
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes("already registered")) {
-        toast({
-          title: "Account exists",
-          description: "This email is already registered. Please sign in instead.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sign up failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-      return;
-    }
-
-    toast({
-      title: "Success!",
-      description: "Your account has been created. Check your email to confirm.",
-    });
+    
+    // Mock signup
+    setTimeout(() => {
+      toast({
+        title: "Success!",
+        description: "Your account has been created.",
+      });
+      navigate("/");
+    }, 500);
   };
 
   const handleSignIn = async () => {
@@ -102,32 +65,15 @@ const Auth = () => {
     }
 
     setLoading(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes("Invalid login credentials")) {
-        toast({
-          title: "Sign in failed",
-          description: "Invalid email or password",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Sign in failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-      return;
-    }
-
-    navigate("/");
+    
+    // Mock signin
+    setTimeout(() => {
+      toast({
+        title: "Success!",
+        description: "You have been signed in.",
+      });
+      navigate("/");
+    }, 500);
   };
 
   return (

@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, User, Trash2, Eye, Shield } from "lucide-react";
+import { Plus, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import AddAccountDialog from "./AddAccountDialog";
 import AccountDetailsDialog from "./AccountDetailsDialog";
 import TelegramAuthDialog from "./TelegramAuthDialog";
@@ -20,44 +19,18 @@ interface TelegramAccount {
 }
 
 interface AccountManagerProps {
-  onAccountSelect: (accountId: string) => void;
+  onAccountSelect: (accountId: string | undefined) => void;
   selectedAccountId?: string;
 }
 
 const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerProps) => {
+  const { toast } = useToast();
   const [accounts, setAccounts] = useState<TelegramAccount[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<TelegramAccount | null>(null);
-  const { toast } = useToast();
-
-  const fetchAccounts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("telegram_accounts")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error loading accounts",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setAccounts(data || []);
-      if (data && data.length > 0 && !selectedAccountId) {
-        onAccountSelect(data[0].id);
-      }
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
 
   const handleViewDetails = (account: TelegramAccount) => {
     setSelectedAccount(account);
@@ -69,41 +42,32 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
     setShowAuthDialog(true);
   };
 
-  const handleDeleteAccount = async (accountId: string) => {
-    const { error } = await supabase
-      .from("telegram_accounts")
-      .delete()
-      .eq("id", accountId);
-
-    if (error) {
-      toast({
-        title: "Error deleting account",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Account deleted",
-        description: "Telegram account has been removed",
-      });
-      fetchAccounts();
+  const handleDeleteAccount = (accountId: string) => {
+    setAccounts(accounts.filter(acc => acc.id !== accountId));
+    if (selectedAccountId === accountId) {
+      onAccountSelect(undefined);
     }
+    toast({
+      title: "Account deleted",
+      description: "The account has been removed",
+    });
   };
 
-  if (loading) {
-    return (
-      <Card className="bg-gradient-card shadow-elegant">
-        <CardContent className="py-12">
-          <div className="text-center text-muted-foreground">
-            <p>Loading accounts...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleSelectAccount = (accountId: string) => {
+    const account = accounts.find(acc => acc.id === accountId);
+    if (account && !account.is_active) {
+      toast({
+        title: "Account not active",
+        description: "Please activate the account first",
+        variant: "destructive",
+      });
+      return;
+    }
+    onAccountSelect(accountId);
+  };
 
   return (
-    <>
+    <div className="space-y-4">
       <Card className="bg-gradient-card shadow-elegant">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -111,11 +75,7 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
               <CardTitle>Telegram Accounts</CardTitle>
               <CardDescription>Manage your connected accounts</CardDescription>
             </div>
-            <Button
-              onClick={() => setShowAddDialog(true)}
-              variant="gradient"
-              size="sm"
-            >
+            <Button onClick={() => setShowAddDialog(true)} size="sm" variant="gradient">
               <Plus className="mr-2 h-4 w-4" />
               Add Account
             </Button>
@@ -123,73 +83,70 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
         </CardHeader>
         <CardContent>
           {accounts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <User className="mx-auto h-12 w-12 mb-2 opacity-50" />
-              <p>No accounts connected</p>
-              <p className="text-sm">Add your first Telegram account to get started</p>
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-4">No accounts connected</p>
+              <Button onClick={() => setShowAddDialog(true)} variant="outline">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Account
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className={`flex items-center justify-between rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md ${
+                  className={`flex items-center justify-between rounded-lg border p-4 transition-all hover:shadow-md ${
                     selectedAccountId === account.id
-                      ? "border-primary bg-primary/5"
-                      : "bg-card"
+                      ? 'border-primary bg-primary/5'
+                      : 'bg-card'
                   }`}
-                  onClick={() => onAccountSelect(account.id)}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium">{account.account_name}</p>
-                      {account.is_active ? (
-                        <Badge className="bg-primary">Active</Badge>
-                      ) : (
-                        <Badge variant="outline">Inactive</Badge>
-                      )}
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold">{account.account_name}</h3>
+                        {account.is_active ? (
+                          <Badge className="bg-primary">Active</Badge>
+                        ) : (
+                          <Badge variant="secondary">Inactive</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{account.phone_number}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {account.phone_number}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {!account.is_active && (
+                    <div className="flex items-center gap-2">
+                      {account.is_active ? (
+                        <Button
+                          onClick={() => handleSelectAccount(account.id)}
+                          size="sm"
+                          variant={selectedAccountId === account.id ? "default" : "outline"}
+                        >
+                          {selectedAccountId === account.id ? "Selected" : "Select"}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => handleActivateAccount(account)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Activate
+                        </Button>
+                      )}
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleActivateAccount(account);
-                        }}
-                        className="gap-2"
+                        onClick={() => handleViewDetails(account)}
+                        size="icon"
+                        variant="ghost"
                       >
-                        <Shield className="h-4 w-4" />
-                        Activate
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewDetails(account);
-                      }}
-                      className="text-muted-foreground hover:text-primary"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAccount(account.id);
-                      }}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        onClick={() => handleDeleteAccount(account.id)}
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -198,27 +155,42 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
         </CardContent>
       </Card>
 
-      <AddAccountDialog
+      <AddAccountDialog 
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onAccountAdded={fetchAccounts}
+        onAccountAdded={(newAccount) => setAccounts([...accounts, newAccount])}
       />
 
-      <AccountDetailsDialog
-        account={selectedAccount}
-        open={showDetailsDialog}
-        onOpenChange={setShowDetailsDialog}
-        onAccountUpdated={fetchAccounts}
-      />
-
-      <TelegramAuthDialog
-        accountId={selectedAccount?.id || null}
-        accountName={selectedAccount?.account_name || ""}
-        open={showAuthDialog}
-        onOpenChange={setShowAuthDialog}
-        onAuthSuccess={fetchAccounts}
-      />
-    </>
+      {selectedAccount && (
+        <>
+          <AccountDetailsDialog
+            account={selectedAccount}
+            open={showDetailsDialog}
+            onOpenChange={setShowDetailsDialog}
+            onAccountUpdated={(updatedAccount) => {
+              setAccounts(accounts.map(acc => 
+                acc.id === updatedAccount.id ? updatedAccount : acc
+              ));
+            }}
+          />
+          <TelegramAuthDialog
+            accountId={selectedAccount.id}
+            accountName={selectedAccount.account_name}
+            open={showAuthDialog}
+            onOpenChange={setShowAuthDialog}
+            onAuthSuccess={() => {
+              setAccounts(accounts.map(acc => 
+                acc.id === selectedAccount.id ? { ...acc, is_active: true } : acc
+              ));
+              toast({
+                title: "Account activated",
+                description: "You can now use this account to send messages",
+              });
+            }}
+          />
+        </>
+      )}
+    </div>
   );
 };
 

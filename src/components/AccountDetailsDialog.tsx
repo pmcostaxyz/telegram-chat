@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 interface TelegramAccount {
@@ -29,7 +28,7 @@ interface AccountDetailsDialogProps {
   account: TelegramAccount | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAccountUpdated: () => void;
+  onAccountUpdated: (account: TelegramAccount) => void;
 }
 
 const AccountDetailsDialog = ({ account, open, onOpenChange, onAccountUpdated }: AccountDetailsDialogProps) => {
@@ -65,38 +64,40 @@ const AccountDetailsDialog = ({ account, open, onOpenChange, onAccountUpdated }:
     });
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!account) return;
 
     setLoading(true);
-    const { error } = await supabase
-      .from("telegram_accounts")
-      .update({
+    
+    // Mock save
+    setTimeout(() => {
+      const updatedAccount = {
+        ...account,
         account_name: formData.account_name,
         phone_number: formData.phone_number,
         api_id: formData.api_id,
         api_hash: formData.api_hash,
-      })
-      .eq("id", account.id);
+      };
 
-    if (error) {
-      toast({
-        title: "Error updating account",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
       toast({
         title: "Account updated",
         description: "Account details have been saved",
       });
       setIsEditing(false);
-      onAccountUpdated();
-    }
-    setLoading(false);
+      onAccountUpdated(updatedAccount);
+      setLoading(false);
+    }, 500);
   };
 
   if (!account) return null;
+
+  // Mask sensitive data
+  const maskedApiId = account.api_id.length > 8 
+    ? `${account.api_id.slice(0, 4)}...${account.api_id.slice(-4)}` 
+    : account.api_id;
+  const maskedApiHash = account.api_hash.length > 8 
+    ? `${account.api_hash.slice(0, 4)}...${account.api_hash.slice(-4)}` 
+    : account.api_hash;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,7 +145,7 @@ const AccountDetailsDialog = ({ account, open, onOpenChange, onAccountUpdated }:
                 onChange={(e) => setFormData({ ...formData, api_id: e.target.value })}
               />
             ) : (
-              <p className="text-sm font-medium font-mono">{account.api_id}</p>
+              <p className="text-sm font-medium font-mono">{maskedApiId}</p>
             )}
           </div>
 
@@ -157,7 +158,7 @@ const AccountDetailsDialog = ({ account, open, onOpenChange, onAccountUpdated }:
                 onChange={(e) => setFormData({ ...formData, api_hash: e.target.value })}
               />
             ) : (
-              <p className="text-sm font-medium font-mono">{account.api_hash}</p>
+              <p className="text-sm font-medium font-mono">{maskedApiHash}</p>
             )}
           </div>
 
