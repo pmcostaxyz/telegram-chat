@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Plus, Trash2, Clock } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Clock, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface ConversationStep {
+export interface ConversationStep {
   id: string;
   accountId: string;
   message: string;
@@ -17,14 +17,33 @@ interface ConversationStep {
 interface ConversationPlannerProps {
   accounts: Array<{ id: string; phone: string }>;
   onPlanSchedule: (steps: ConversationStep[]) => void;
+  aiGeneratedSteps?: Array<{ accountId: string; message: string; delay: number }>;
+  onClearAISteps?: () => void;
 }
 
-const ConversationPlanner = ({ accounts, onPlanSchedule }: ConversationPlannerProps) => {
+const ConversationPlanner = ({ 
+  accounts, 
+  onPlanSchedule, 
+  aiGeneratedSteps,
+  onClearAISteps 
+}: ConversationPlannerProps) => {
   const [conversationSteps, setConversationSteps] = useState<ConversationStep[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [currentDelay, setCurrentDelay] = useState(5);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (aiGeneratedSteps && aiGeneratedSteps.length > 0) {
+      const steps: ConversationStep[] = aiGeneratedSteps.map((step, index) => ({
+        id: `ai-${Date.now()}-${index}`,
+        accountId: step.accountId,
+        message: step.message,
+        delay: step.delay,
+      }));
+      setConversationSteps(steps);
+    }
+  }, [aiGeneratedSteps]);
 
   const handleAddStep = () => {
     if (!selectedAccountId || !currentMessage.trim()) {
@@ -49,7 +68,7 @@ const ConversationPlanner = ({ accounts, onPlanSchedule }: ConversationPlannerPr
     
     toast({
       title: "Step Added",
-      description: "Conversation step added to the plan",
+      description: "Message added to conversation",
     });
   };
 
@@ -61,7 +80,7 @@ const ConversationPlanner = ({ accounts, onPlanSchedule }: ConversationPlannerPr
     if (conversationSteps.length === 0) {
       toast({
         title: "Error",
-        description: "Add at least one conversation step",
+        description: "Add at least one message to the conversation",
         variant: "destructive",
       });
       return;
@@ -69,67 +88,90 @@ const ConversationPlanner = ({ accounts, onPlanSchedule }: ConversationPlannerPr
 
     onPlanSchedule(conversationSteps);
     setConversationSteps([]);
+    onClearAISteps?.();
     
     toast({
       title: "Conversation Scheduled",
-      description: `${conversationSteps.length} messages planned`,
+      description: `${conversationSteps.length} messages scheduled`,
     });
+  };
+
+  const handleClear = () => {
+    setConversationSteps([]);
+    onClearAISteps?.();
   };
 
   return (
     <Card className="p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <MessageSquare className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Conversation Planner</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold">Conversation Builder</h3>
+        </div>
+        {conversationSteps.length > 0 && conversationSteps[0]?.id.startsWith('ai-') && (
+          <Badge variant="secondary" className="gap-1">
+            <Wand2 className="h-3 w-3" />
+            AI Generated
+          </Badge>
+        )}
       </div>
       
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="account">Select Account</Label>
-          <select
-            id="account"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-            value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-          >
-            <option value="">Choose account...</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.phone}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="message">Message</Label>
-          <Input
-            id="message"
-            placeholder="Enter message or use AI generator"
-            value={currentMessage}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="delay">Delay (seconds)</Label>
-          <Input
-            id="delay"
-            type="number"
-            min="1"
-            value={currentDelay}
-            onChange={(e) => setCurrentDelay(Number(e.target.value))}
-          />
-        </div>
-        
-        <Button onClick={handleAddStep} className="w-full">
-          <Plus className="h-4 w-4 mr-2" />
-          Add to Conversation
-        </Button>
+        {conversationSteps.length === 0 && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="account">Select Account</Label>
+              <select
+                id="account"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                value={selectedAccountId}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+              >
+                <option value="">Choose account...</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.phone}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="message">Message</Label>
+              <Input
+                id="message"
+                placeholder="Enter message manually"
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="delay">Delay (seconds)</Label>
+              <Input
+                id="delay"
+                type="number"
+                min="1"
+                value={currentDelay}
+                onChange={(e) => setCurrentDelay(Number(e.target.value))}
+              />
+            </div>
+            
+            <Button onClick={handleAddStep} className="w-full" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Message Manually
+            </Button>
+          </>
+        )}
         
         {conversationSteps.length > 0 && (
           <div className="space-y-3">
-            <Label>Conversation Flow ({conversationSteps.length} steps)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Conversation Flow ({conversationSteps.length} messages)</Label>
+              <Button variant="ghost" size="sm" onClick={handleClear}>
+                Clear All
+              </Button>
+            </div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {conversationSteps.map((step, index) => {
                 const account = accounts.find(a => a.id === step.accountId);
@@ -138,8 +180,8 @@ const ConversationPlanner = ({ accounts, onPlanSchedule }: ConversationPlannerPr
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline">Step {index + 1}</Badge>
-                          <span className="text-xs text-muted-foreground">{account?.phone}</span>
+                          <Badge variant="outline">#{index + 1}</Badge>
+                          <span className="text-xs font-medium">{account?.phone}</span>
                         </div>
                         <p className="text-sm">{step.message}</p>
                         <div className="flex items-center gap-1 mt-1">

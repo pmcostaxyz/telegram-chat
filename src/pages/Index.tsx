@@ -8,6 +8,7 @@ import GroupSelector from "@/components/GroupSelector";
 import KnowledgeBaseManager from "@/components/KnowledgeBaseManager";
 import AIMessageGenerator from "@/components/AIMessageGenerator";
 import ConversationPlanner from "@/components/ConversationPlanner";
+import ConversationPreview from "@/components/ConversationPreview";
 import type { Message } from "@/components/MessageForm";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -19,10 +20,23 @@ const Index = () => {
   const [accounts, setAccounts] = useState<Array<{ id: string; phone: string }>>([
     { id: "1", phone: "+1234567890" },
     { id: "2", phone: "+0987654321" },
+    { id: "3", phone: "+1122334455" },
   ]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string }>();
   const [knowledgeBase, setKnowledgeBase] = useState<string[]>([]);
+  const [previewConversation, setPreviewConversation] = useState<Array<{
+    id: string;
+    accountId: string;
+    accountPhone: string;
+    message: string;
+    delay: number;
+  }>>([]);
+  const [pendingAISteps, setPendingAISteps] = useState<Array<{ 
+    accountId: string; 
+    message: string; 
+    delay: number 
+  }>>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -77,23 +91,72 @@ const Index = () => {
     setKnowledgeBase([...knowledgeBase, text]);
   };
 
-  const handleMessageGenerated = (message: string) => {
-    // Auto-fill the message form or add to conversation planner
+  const handleConversationGenerated = (conversation: Array<{ 
+    accountId: string; 
+    message: string; 
+    delay: number 
+  }>) => {
+    const preview = conversation.map((step, index) => {
+      const account = accounts.find(a => a.id === step.accountId);
+      return {
+        id: `preview-${Date.now()}-${index}`,
+        accountId: step.accountId,
+        accountPhone: account?.phone || "Unknown",
+        message: step.message,
+        delay: step.delay,
+      };
+    });
+    
+    setPreviewConversation(preview);
+    setPendingAISteps(conversation);
+  };
+
+  const handleApproveConversation = () => {
+    if (pendingAISteps.length === 0) return;
+    
+    let cumulativeDelay = 0;
+    const newMessages: Message[] = pendingAISteps.map((step, index) => {
+      cumulativeDelay += step.delay;
+      return {
+        id: `${Date.now()}-${index}`,
+        text: step.message,
+        recipient: selectedGroup?.name || "Group",
+        status: "scheduled" as const,
+        scheduledTime: new Date(Date.now() + cumulativeDelay * 1000).toISOString(),
+      };
+    });
+    
+    setMessages([...messages, ...newMessages]);
+    setPreviewConversation([]);
+    setPendingAISteps([]);
+    
     toast({
-      title: "Message Ready",
-      description: "AI generated message is ready to use",
+      title: "Conversation Scheduled",
+      description: `${newMessages.length} messages scheduled`,
+    });
+  };
+
+  const handleRejectConversation = () => {
+    setPreviewConversation([]);
+    setPendingAISteps([]);
+    toast({
+      title: "Conversation Cleared",
+      description: "Generate a new conversation",
     });
   };
 
   const handlePlanSchedule = (steps: any[]) => {
-    // Schedule all conversation steps
-    const newMessages: Message[] = steps.map((step, index) => ({
-      id: `${Date.now()}-${index}`,
-      text: step.message,
-      recipient: selectedGroup?.name || "Group",
-      status: "scheduled" as const,
-      scheduledTime: new Date(Date.now() + step.delay * 1000 * index).toISOString(),
-    }));
+    let cumulativeDelay = 0;
+    const newMessages: Message[] = steps.map((step, index) => {
+      cumulativeDelay += step.delay;
+      return {
+        id: `${Date.now()}-${index}`,
+        text: step.message,
+        recipient: selectedGroup?.name || "Group",
+        status: "scheduled" as const,
+        scheduledTime: new Date(Date.now() + cumulativeDelay * 1000).toISOString(),
+      };
+    });
     
     setMessages([...messages, ...newMessages]);
   };
@@ -144,7 +207,7 @@ const Index = () => {
                 selectedGroup={selectedGroup}
               />
               
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 lg:grid-cols-3">
                 <div className="space-y-6">
                   <KnowledgeBaseManager
                     knowledge={knowledgeBase}
@@ -153,18 +216,31 @@ const Index = () => {
                   
                   <AIMessageGenerator
                     knowledge={knowledgeBase}
-                    onMessageGenerated={handleMessageGenerated}
+                    accounts={accounts}
+                    onConversationGenerated={handleConversationGenerated}
                     disabled={!selectedGroup}
                   />
                 </div>
                 
-                <ConversationPlanner
-                  accounts={accounts}
-                  onPlanSchedule={handlePlanSchedule}
-                />
+                <div className="lg:col-span-2 space-y-6">
+                  {previewConversation.length > 0 ? (
+                    <ConversationPreview
+                      messages={previewConversation}
+                      onApprove={handleApproveConversation}
+                      onReject={handleRejectConversation}
+                    />
+                  ) : (
+                    <ConversationPlanner
+                      accounts={accounts}
+                      onPlanSchedule={handlePlanSchedule}
+                      aiGeneratedSteps={pendingAISteps}
+                      onClearAISteps={() => setPendingAISteps([])}
+                    />
+                  )}
+                  
+                  <MessageList messages={messages} onDeleteMessage={handleDeleteMessage} />
+                </div>
               </div>
-              
-              <MessageList messages={messages} onDeleteMessage={handleDeleteMessage} />
             </TabsContent>
           </Tabs>
         </div>
