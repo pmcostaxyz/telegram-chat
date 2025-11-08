@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import SkeletonLoader from "./SkeletonLoader";
 
 interface Account {
   id: string;
@@ -107,65 +108,66 @@ const AIMessageGenerator = ({
         <h3 className="text-lg font-semibold">AI Conversation Generator</h3>
       </div>
       
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="topic">Conversation Topic</Label>
-          <Textarea
-            id="topic"
-            placeholder="What should the conversation be about? e.g., 'Bitcoin price predictions for Q2'"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            rows={3}
-            disabled={disabled}
-          />
+      {isGenerating ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-primary">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm font-medium">Generating conversation...</span>
+          </div>
+          <SkeletonLoader type="conversation" count={3} />
         </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="topic">Conversation Topic</Label>
+            <Textarea
+              id="topic"
+              placeholder="What should the conversation be about? e.g., 'Bitcoin price predictions for Q2'"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              rows={3}
+              disabled={disabled}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="messageCount">Number of Messages</Label>
-          <Input
-            id="messageCount"
-            type="number"
-            min="2"
-            max="8"
-            value={messageCount}
-            onChange={(e) => setMessageCount(Number(e.target.value))}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            Generate between 2-8 messages (will alternate between your accounts)
-          </p>
-        </div>
-        
-        <Button 
-          onClick={handleGenerate} 
-          className="w-full"
-          disabled={disabled || isGenerating || accounts.length < 2}
-        >
-          {isGenerating ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Generating Conversation...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate Full Conversation
-            </>
+          <div className="space-y-2">
+            <Label htmlFor="messageCount">Number of Messages</Label>
+            <Input
+              id="messageCount"
+              type="number"
+              min="2"
+              max="8"
+              value={messageCount}
+              onChange={(e) => setMessageCount(Number(e.target.value))}
+              disabled={disabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Generate between 2-8 messages (will alternate between your accounts)
+            </p>
+          </div>
+          
+          <Button 
+            onClick={handleGenerate} 
+            className="w-full"
+            disabled={disabled || accounts.length < 2}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate Full Conversation
+          </Button>
+          
+          {knowledge.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Using {knowledge.length} knowledge base items to enhance conversation
+            </p>
           )}
-        </Button>
-        
-        {knowledge.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Using {knowledge.length} knowledge base items to enhance conversation
-          </p>
-        )}
 
-        {accounts.length < 2 && (
-          <p className="text-xs text-destructive">
-            Add at least 2 accounts to generate conversations
-          </p>
-        )}
-      </div>
+          {accounts.length < 2 && (
+            <p className="text-xs text-destructive">
+              Add at least 2 accounts to generate conversations
+            </p>
+          )}
+        </div>
+      )}
     </Card>
   );
 };

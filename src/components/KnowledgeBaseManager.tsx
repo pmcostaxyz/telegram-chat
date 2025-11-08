@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Brain, Plus } from "lucide-react";
+import { Brain, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import EmptyState from "./EmptyState";
 
 interface KnowledgeBaseManagerProps {
   knowledge: string[];
@@ -24,6 +25,14 @@ const KnowledgeBaseManager = ({ knowledge, onAddKnowledge }: KnowledgeBaseManage
         description: "New context added to knowledge base",
       });
     }
+  };
+
+  const handleRemoveKnowledge = (index: number) => {
+    const updatedKnowledge = knowledge.filter((_, i) => i !== index);
+    toast({
+      title: "Knowledge Removed",
+      description: "Entry removed from knowledge base",
+    });
   };
 
   return (
@@ -49,18 +58,32 @@ const KnowledgeBaseManager = ({ knowledge, onAddKnowledge }: KnowledgeBaseManage
           </Button>
         </div>
         
-        {knowledge.length > 0 && (
-          <div className="space-y-2">
-            <Label>Current Knowledge ({knowledge.length} items)</Label>
+        <div className="space-y-2">
+          <Label>Knowledge Base ({knowledge.length} entries)</Label>
+          {knowledge.length === 0 ? (
+            <EmptyState
+              icon={Brain}
+              title="No Knowledge Added"
+              description="Add context about your group or topics to help AI generate better conversations"
+            />
+          ) : (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {knowledge.map((item, index) => (
-                <div key={index} className="p-2 bg-muted rounded text-sm">
-                  {item}
+                <div key={index} className="flex items-start justify-between gap-2 p-2 bg-muted rounded-md group animate-fade-in">
+                  <p className="text-sm flex-1">{item}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveKnowledge(index)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </Card>
   );

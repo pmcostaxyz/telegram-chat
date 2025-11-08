@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Eye, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Eye, Trash2, Search, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AddAccountDialog from "./AddAccountDialog";
 import AccountDetailsDialog from "./AccountDetailsDialog";
 import TelegramAuthDialog from "./TelegramAuthDialog";
+import EmptyState from "./EmptyState";
 
 interface TelegramAccount {
   id: string;
@@ -31,6 +33,7 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<TelegramAccount | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleViewDetails = (account: TelegramAccount) => {
     setSelectedAccount(account);
@@ -66,33 +69,55 @@ const AccountManager = ({ onAccountSelect, selectedAccountId }: AccountManagerPr
     onAccountSelect(accountId);
   };
 
+  const filteredAccounts = accounts.filter(account =>
+    account.phone_number.includes(searchQuery) || 
+    account.account_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-4">
       <Card className="bg-gradient-card shadow-elegant">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle>Telegram Accounts</CardTitle>
               <CardDescription>Manage your connected accounts</CardDescription>
             </div>
-            <Button onClick={() => setShowAddDialog(true)} size="sm" variant="gradient">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Account
-            </Button>
+            <div className="flex items-center gap-2">
+              {accounts.length > 0 && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 w-40"
+                  />
+                </div>
+              )}
+              <Button onClick={() => setShowAddDialog(true)} size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Add
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {accounts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">No accounts connected</p>
-              <Button onClick={() => setShowAddDialog(true)} variant="outline">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Your First Account
-              </Button>
-            </div>
+            <EmptyState
+              icon={Smartphone}
+              title="No Accounts Added"
+              description="Add your first Telegram account to start sending automated messages"
+              action={{
+                label: "Add Account",
+                onClick: () => setShowAddDialog(true)
+              }}
+            />
+          ) : filteredAccounts.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No accounts match your search</p>
           ) : (
             <div className="space-y-3">
-              {accounts.map((account) => (
+              {filteredAccounts.map((account) => (
                 <div
                   key={account.id}
                   className={`flex items-center justify-between rounded-lg border p-4 transition-all hover:shadow-md ${

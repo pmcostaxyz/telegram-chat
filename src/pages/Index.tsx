@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import AccountManager from "@/components/AccountManager";
 import MessageForm from "@/components/MessageForm";
-import MessageList from "@/components/MessageList";
+import MessageTimeline from "@/components/MessageTimeline";
 import GroupSelector from "@/components/GroupSelector";
 import KnowledgeBaseManager from "@/components/KnowledgeBaseManager";
 import AIMessageGenerator from "@/components/AIMessageGenerator";
 import ConversationPlanner from "@/components/ConversationPlanner";
 import ConversationPreview from "@/components/ConversationPreview";
+import MessageTemplates, { ConversationTemplate } from "@/components/MessageTemplates";
+import DataExportImport from "@/components/DataExportImport";
 import type { Message } from "@/components/MessageForm";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ const Index = () => {
     message: string; 
     delay: number 
   }>>([]);
+  const [templates, setTemplates] = useState<ConversationTemplate[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -161,6 +164,35 @@ const Index = () => {
     setMessages([...messages, ...newMessages]);
   };
 
+  const handleSaveTemplate = (template: Omit<ConversationTemplate, "id" | "createdAt">) => {
+    const newTemplate: ConversationTemplate = {
+      ...template,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
+    setTemplates([...templates, newTemplate]);
+  };
+
+  const handleLoadTemplate = (template: ConversationTemplate) => {
+    setPendingAISteps(template.steps);
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    setTemplates(templates.filter(t => t.id !== id));
+  };
+
+  const handleImportData = (importedData: any) => {
+    if (importedData.messages) {
+      setMessages(importedData.messages);
+    }
+    if (importedData.templates) {
+      setTemplates(importedData.templates);
+    }
+    if (importedData.knowledgeBase) {
+      setKnowledgeBase(importedData.knowledgeBase);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -192,12 +224,20 @@ const Index = () => {
             </TabsList>
             
             <TabsContent value="basic" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <MessageForm
-                  onSendMessage={handleSendMessage}
-                  disabled={!selectedAccountId}
-                />
-                <MessageList messages={messages} onDeleteMessage={handleDeleteMessage} />
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="space-y-6">
+                  <MessageForm
+                    onSendMessage={handleSendMessage}
+                    disabled={!selectedAccountId}
+                  />
+                  <DataExportImport
+                    data={{ messages, templates, knowledgeBase }}
+                    onImport={handleImportData}
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <MessageTimeline messages={messages} onDeleteMessage={handleDeleteMessage} />
+                </div>
               </div>
             </TabsContent>
             
@@ -220,6 +260,19 @@ const Index = () => {
                     onConversationGenerated={handleConversationGenerated}
                     disabled={!selectedGroup}
                   />
+
+                  <MessageTemplates
+                    templates={templates}
+                    onSaveTemplate={handleSaveTemplate}
+                    onLoadTemplate={handleLoadTemplate}
+                    onDeleteTemplate={handleDeleteTemplate}
+                    currentSteps={pendingAISteps}
+                  />
+
+                  <DataExportImport
+                    data={{ messages, templates, knowledgeBase }}
+                    onImport={handleImportData}
+                  />
                 </div>
                 
                 <div className="lg:col-span-2 space-y-6">
@@ -238,7 +291,7 @@ const Index = () => {
                     />
                   )}
                   
-                  <MessageList messages={messages} onDeleteMessage={handleDeleteMessage} />
+                  <MessageTimeline messages={messages} onDeleteMessage={handleDeleteMessage} />
                 </div>
               </div>
             </TabsContent>
