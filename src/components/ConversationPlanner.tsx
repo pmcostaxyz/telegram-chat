@@ -4,8 +4,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Plus, Trash2, Clock, Wand2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Clock, Wand2, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export interface ConversationStep {
   id: string;
@@ -21,6 +38,67 @@ interface ConversationPlannerProps {
   onClearAISteps?: () => void;
 }
 
+const SortableStep = ({ 
+  step, 
+  index, 
+  account, 
+  onRemove 
+}: { 
+  step: ConversationStep; 
+  index: number; 
+  account: { phone: string } | undefined; 
+  onRemove: () => void;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: step.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className="p-3 bg-muted rounded-md space-y-2 cursor-move"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 flex-1">
+          <div {...attributes} {...listeners} className="mt-1 cursor-grab active:cursor-grabbing">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant="outline">#{index + 1}</Badge>
+              <span className="text-xs font-medium">{account?.phone}</span>
+            </div>
+            <p className="text-sm">{step.message}</p>
+            <div className="flex items-center gap-1 mt-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{step.delay}s delay</span>
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const ConversationPlanner = ({ 
   accounts, 
   onPlanSchedule, 
@@ -32,6 +110,13 @@ const ConversationPlanner = ({
   const [currentDelay, setCurrentDelay] = useState(5);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const { toast } = useToast();
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (aiGeneratedSteps && aiGeneratedSteps.length > 0) {
@@ -99,6 +184,19 @@ const ConversationPlanner = ({
   const handleClear = () => {
     setConversationSteps([]);
     onClearAISteps?.();
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setConversationSteps((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   return (
@@ -172,35 +270,31 @@ const ConversationPlanner = ({
                 Clear All
               </Button>
             </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {conversationSteps.map((step, index) => {
-                const account = accounts.find(a => a.id === step.accountId);
-                return (
-                  <div key={step.id} className="p-3 bg-muted rounded-md space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline">#{index + 1}</Badge>
-                          <span className="text-xs font-medium">{account?.phone}</span>
-                        </div>
-                        <p className="text-sm">{step.message}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">{step.delay}s delay</span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveStep(step.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={conversationSteps.map(step => step.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {conversationSteps.map((step, index) => {
+                    const account = accounts.find(a => a.id === step.accountId);
+                    return (
+                      <SortableStep
+                        key={step.id}
+                        step={step}
+                        index={index}
+                        account={account}
+                        onRemove={() => handleRemoveStep(step.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
             
             <Button onClick={handleSchedulePlan} className="w-full">
               Schedule Conversation

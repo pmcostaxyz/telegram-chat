@@ -11,6 +11,7 @@ import ConversationPlanner from "@/components/ConversationPlanner";
 import ConversationPreview from "@/components/ConversationPreview";
 import MessageTemplates, { ConversationTemplate } from "@/components/MessageTemplates";
 import DataExportImport from "@/components/DataExportImport";
+import CalendarView from "@/components/CalendarView";
 import type { Message } from "@/components/MessageForm";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -218,9 +219,10 @@ const Index = () => {
           />
           
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Basic Messaging</TabsTrigger>
               <TabsTrigger value="ai">AI Conversation Simulator</TabsTrigger>
+              <TabsTrigger value="calendar">Calendar</TabsTrigger>
             </TabsList>
             
             <TabsContent value="basic" className="space-y-6">
@@ -294,6 +296,13 @@ const Index = () => {
                   <MessageTimeline messages={messages} onDeleteMessage={handleDeleteMessage} />
                 </div>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="calendar" className="space-y-6">
+              <CalendarView
+                messages={messages}
+                onDeleteMessage={handleDeleteMessage}
+              />
             </TabsContent>
           </Tabs>
         </div>
