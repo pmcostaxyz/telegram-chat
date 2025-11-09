@@ -2,7 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Trash2, Clock, CheckCircle2, XCircle, Search, Calendar } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Trash2, Clock, CheckCircle2, XCircle, Search, Calendar, Edit2, Save, X } from "lucide-react";
 import { useState } from "react";
 import EmptyState from "./EmptyState";
 import type { Message } from "./MessageForm";
@@ -20,11 +21,15 @@ import {
 interface MessageTimelineProps {
   messages: Message[];
   onDeleteMessage: (id: string) => void;
+  onEditMessage?: (id: string, text: string, recipient: string) => void;
 }
 
-const MessageTimeline = ({ messages, onDeleteMessage }: MessageTimelineProps) => {
+const MessageTimeline = ({ messages, onDeleteMessage, onEditMessage }: MessageTimelineProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editRecipient, setEditRecipient] = useState("");
 
   const filteredMessages = messages.filter(msg => 
     msg.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -39,6 +44,25 @@ const MessageTimeline = ({ messages, onDeleteMessage }: MessageTimelineProps) =>
     if (deleteConfirm) {
       onDeleteMessage(deleteConfirm);
       setDeleteConfirm(null);
+    }
+  };
+
+  const startEdit = (msg: Message) => {
+    setEditingId(msg.id);
+    setEditText(msg.text);
+    setEditRecipient(msg.recipient);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+    setEditRecipient("");
+  };
+
+  const saveEdit = () => {
+    if (editingId && onEditMessage) {
+      onEditMessage(editingId, editText, editRecipient);
+      cancelEdit();
     }
   };
 
@@ -99,51 +123,92 @@ const MessageTimeline = ({ messages, onDeleteMessage }: MessageTimelineProps) =>
                 }`} />
                 
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-hover transition-all group">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {msg.status === "scheduled" && (
-                          <Badge variant="secondary" className="gap-1">
-                            <Clock className="h-3 w-3" />
-                            Scheduled
-                          </Badge>
-                        )}
-                        {msg.status === "sent" && (
-                          <Badge className="gap-1 bg-primary">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Sent
-                          </Badge>
-                        )}
-                        {msg.status === "failed" && (
-                          <Badge variant="destructive" className="gap-1">
-                            <XCircle className="h-3 w-3" />
-                            Failed
-                          </Badge>
-                        )}
-                        {msg.scheduledTime && (
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(msg.scheduledTime).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true
-                            })}
-                          </span>
-                        )}
+                  {editingId === msg.id ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Input
+                          value={editRecipient}
+                          onChange={(e) => setEditRecipient(e.target.value)}
+                          placeholder="Recipient"
+                          className="text-sm"
+                        />
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          placeholder="Message text"
+                          className="text-sm min-h-[80px]"
+                        />
                       </div>
-                      <p className="text-sm font-medium text-foreground">To: {msg.recipient}</p>
-                      <p className="text-sm text-muted-foreground">{msg.text}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit} className="gap-1">
+                          <Save className="h-3 w-3" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit} className="gap-1">
+                          <X className="h-3 w-3" />
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(msg.id)}
-                      className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {msg.status === "scheduled" && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Clock className="h-3 w-3" />
+                              Scheduled
+                            </Badge>
+                          )}
+                          {msg.status === "sent" && (
+                            <Badge className="gap-1 bg-primary">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Sent
+                            </Badge>
+                          )}
+                          {msg.status === "failed" && (
+                            <Badge variant="destructive" className="gap-1">
+                              <XCircle className="h-3 w-3" />
+                              Failed
+                            </Badge>
+                          )}
+                          {msg.scheduledTime && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(msg.scheduledTime).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-foreground">To: {msg.recipient}</p>
+                        <p className="text-sm text-muted-foreground">{msg.text}</p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {msg.status === "scheduled" && onEditMessage && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => startEdit(msg)}
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(msg.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

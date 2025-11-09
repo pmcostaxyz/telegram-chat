@@ -12,6 +12,7 @@ import ConversationPreview from "@/components/ConversationPreview";
 import MessageTemplates, { ConversationTemplate } from "@/components/MessageTemplates";
 import DataExportImport from "@/components/DataExportImport";
 import CalendarView from "@/components/CalendarView";
+import ConversationAnalytics from "@/components/ConversationAnalytics";
 import type { Message } from "@/components/MessageForm";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,16 @@ const Index = () => {
     toast({
       title: "Success",
       description: "Message deleted successfully",
+    });
+  };
+
+  const handleEditMessage = (id: string, text: string, recipient: string) => {
+    setMessages(messages.map(msg => 
+      msg.id === id ? { ...msg, text, recipient } : msg
+    ));
+    toast({
+      title: "Success",
+      description: "Message updated successfully",
     });
   };
 
@@ -219,10 +230,11 @@ const Index = () => {
           />
           
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Basic Messaging</TabsTrigger>
               <TabsTrigger value="ai">AI Conversation Simulator</TabsTrigger>
               <TabsTrigger value="calendar">Calendar</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
             
             <TabsContent value="basic" className="space-y-6">
@@ -238,7 +250,11 @@ const Index = () => {
                   />
                 </div>
                 <div className="lg:col-span-2">
-                  <MessageTimeline messages={messages} onDeleteMessage={handleDeleteMessage} />
+                  <MessageTimeline 
+                    messages={messages} 
+                    onDeleteMessage={handleDeleteMessage}
+                    onEditMessage={handleEditMessage}
+                  />
                 </div>
               </div>
             </TabsContent>
@@ -293,7 +309,11 @@ const Index = () => {
                     />
                   )}
                   
-                  <MessageTimeline messages={messages} onDeleteMessage={handleDeleteMessage} />
+                  <MessageTimeline 
+                    messages={messages} 
+                    onDeleteMessage={handleDeleteMessage}
+                    onEditMessage={handleEditMessage}
+                  />
                 </div>
               </div>
             </TabsContent>
@@ -302,6 +322,14 @@ const Index = () => {
               <CalendarView
                 messages={messages}
                 onDeleteMessage={handleDeleteMessage}
+                onEditMessage={handleEditMessage}
+              />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-6">
+              <ConversationAnalytics
+                messages={messages}
+                accounts={accounts}
               />
             </TabsContent>
           </Tabs>

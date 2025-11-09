@@ -3,20 +3,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Edit2, Save, X } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
 import type { Message } from "@/components/MessageForm";
 
 interface CalendarViewProps {
   messages: Message[];
   onDeleteMessage: (id: string) => void;
+  onEditMessage?: (id: string, text: string, recipient: string) => void;
 }
 
 type ViewMode = "day" | "week" | "month";
 
-const CalendarView = ({ messages, onDeleteMessage }: CalendarViewProps) => {
+const CalendarView = ({ messages, onDeleteMessage, onEditMessage }: CalendarViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editRecipient, setEditRecipient] = useState("");
 
   const scheduledMessages = messages.filter(msg => msg.status === "scheduled" && msg.scheduledTime);
 
@@ -39,6 +45,25 @@ const CalendarView = ({ messages, onDeleteMessage }: CalendarViewProps) => {
     }
   };
 
+  const startEdit = (msg: Message) => {
+    setEditingId(msg.id);
+    setEditText(msg.text);
+    setEditRecipient(msg.recipient);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+    setEditRecipient("");
+  };
+
+  const saveEdit = () => {
+    if (editingId && onEditMessage) {
+      onEditMessage(editingId, editText, editRecipient);
+      cancelEdit();
+    }
+  };
+
   const renderDayView = () => {
     const messagesForDay = getMessagesForDate(currentDate);
     
@@ -54,25 +79,66 @@ const CalendarView = ({ messages, onDeleteMessage }: CalendarViewProps) => {
             messagesForDay.map(msg => (
               <Card key={msg.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="secondary">
-                          {msg.scheduledTime && format(parseISO(msg.scheduledTime), "h:mm a")}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">→ {msg.recipient}</span>
+                  {editingId === msg.id ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Input
+                          value={editRecipient}
+                          onChange={(e) => setEditRecipient(e.target.value)}
+                          placeholder="Recipient"
+                          className="text-sm"
+                        />
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          placeholder="Message text"
+                          className="text-sm min-h-[80px]"
+                        />
                       </div>
-                      <p className="text-sm">{msg.text}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit}>
+                          <Save className="h-3 w-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDeleteMessage(msg.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Delete
-                    </Button>
-                  </div>
+                  ) : (
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="secondary">
+                            {msg.scheduledTime && format(parseISO(msg.scheduledTime), "h:mm a")}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">→ {msg.recipient}</span>
+                        </div>
+                        <p className="text-sm">{msg.text}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        {onEditMessage && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEdit(msg)}
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDeleteMessage(msg.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))
@@ -160,25 +226,66 @@ const CalendarView = ({ messages, onDeleteMessage }: CalendarViewProps) => {
           {getMessagesForDate(currentDate).map(msg => (
             <Card key={msg.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {msg.scheduledTime && format(parseISO(msg.scheduledTime), "h:mm a")}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">→ {msg.recipient}</span>
+                {editingId === msg.id ? (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Input
+                        value={editRecipient}
+                        onChange={(e) => setEditRecipient(e.target.value)}
+                        placeholder="Recipient"
+                        className="text-sm"
+                      />
+                      <Textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        placeholder="Message text"
+                        className="text-sm min-h-[60px]"
+                      />
                     </div>
-                    <p className="text-sm">{msg.text}</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={saveEdit}>
+                        <Save className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={cancelEdit}>
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDeleteMessage(msg.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    Delete
-                  </Button>
-                </div>
+                ) : (
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {msg.scheduledTime && format(parseISO(msg.scheduledTime), "h:mm a")}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">→ {msg.recipient}</span>
+                      </div>
+                      <p className="text-sm">{msg.text}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      {onEditMessage && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEdit(msg)}
+                          className="text-muted-foreground hover:text-primary"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDeleteMessage(msg.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
