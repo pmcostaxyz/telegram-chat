@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Send, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import RecurringScheduleDialog from "./RecurringScheduleDialog";
+import BranchingConditionsDialog from "./BranchingConditionsDialog";
+import type { RecurringSchedule, BranchingRules } from "./RecurringScheduleDialog";
 
 interface Message {
   id: string;
@@ -14,11 +17,14 @@ interface Message {
   recipient: string;
   scheduledTime?: string;
   status: "scheduled" | "sent" | "failed";
+  recurring?: RecurringSchedule;
+  branching?: BranchingRules;
 }
 
 interface MessageFormProps {
   onSendMessage: (message: Message) => void;
   disabled: boolean;
+  accounts?: Array<{ id: string; phone: string }>;
 }
 
 const messageSchema = z.object({
@@ -33,10 +39,12 @@ const messageSchema = z.object({
   scheduledTime: z.string().optional(),
 });
 
-const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
+const MessageForm = ({ onSendMessage, disabled, accounts = [] }: MessageFormProps) => {
   const [message, setMessage] = useState("");
   const [recipient, setRecipient] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [recurring, setRecurring] = useState<RecurringSchedule>();
+  const [branching, setBranching] = useState<BranchingRules>();
   const { toast } = useToast();
 
   const handleSendNow = () => {
@@ -108,12 +116,16 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
       recipient,
       scheduledTime,
       status: "scheduled",
+      recurring,
+      branching,
     };
 
     onSendMessage(newMessage);
     setMessage("");
     setRecipient("");
     setScheduledTime("");
+    setRecurring(undefined);
+    setBranching(undefined);
     toast({
       title: "Message scheduled!",
       description: `Will be sent on ${scheduledDate.toLocaleString()}`,
@@ -167,6 +179,21 @@ const MessageForm = ({ onSendMessage, disabled }: MessageFormProps) => {
             min={new Date().toISOString().slice(0, 16)}
           />
         </div>
+        
+        {scheduledTime && (
+          <div className="grid grid-cols-2 gap-2">
+            <RecurringScheduleDialog
+              schedule={recurring}
+              onScheduleChange={setRecurring}
+            />
+            <BranchingConditionsDialog
+              rules={branching}
+              accounts={accounts}
+              onRulesChange={setBranching}
+            />
+          </div>
+        )}
+        
         <div className="flex gap-2">
           <Button
             onClick={handleSendNow}

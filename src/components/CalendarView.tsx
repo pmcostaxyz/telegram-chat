@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Edit2, Save, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Edit2, Save, X, Repeat, GitBranch } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
 import type { Message } from "@/components/MessageForm";
 
@@ -114,6 +114,18 @@ const CalendarView = ({ messages, onDeleteMessage, onEditMessage }: CalendarView
                             {msg.scheduledTime && format(parseISO(msg.scheduledTime), "h:mm a")}
                           </Badge>
                           <span className="text-sm text-muted-foreground">→ {msg.recipient}</span>
+                          {msg.recurring?.enabled && (
+                            <Badge variant="outline" className="gap-1">
+                              <Repeat className="h-3 w-3" />
+                              {msg.recurring.frequency}
+                            </Badge>
+                          )}
+                          {msg.branching?.enabled && (
+                            <Badge variant="outline" className="gap-1">
+                              <GitBranch className="h-3 w-3" />
+                              {msg.branching.conditions.length}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm">{msg.text}</p>
                       </div>
@@ -261,6 +273,18 @@ const CalendarView = ({ messages, onDeleteMessage, onEditMessage }: CalendarView
                           {msg.scheduledTime && format(parseISO(msg.scheduledTime), "h:mm a")}
                         </Badge>
                         <span className="text-xs text-muted-foreground">→ {msg.recipient}</span>
+                        {msg.recurring?.enabled && (
+                          <Badge variant="outline" className="gap-1 text-xs">
+                            <Repeat className="h-2 w-2" />
+                            {msg.recurring.frequency}
+                          </Badge>
+                        )}
+                        {msg.branching?.enabled && (
+                          <Badge variant="outline" className="gap-1 text-xs">
+                            <GitBranch className="h-2 w-2" />
+                            {msg.branching.conditions.length}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm">{msg.text}</p>
                     </div>

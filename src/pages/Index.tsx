@@ -243,6 +243,7 @@ const Index = () => {
                   <MessageForm
                     onSendMessage={handleSendMessage}
                     disabled={!selectedAccountId}
+                    accounts={accounts}
                   />
                   <DataExportImport
                     data={{ messages, templates, knowledgeBase }}

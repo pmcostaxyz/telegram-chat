@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Clock, CheckCircle2, XCircle, Search, Calendar, Edit2, Save, X } from "lucide-react";
+import { Trash2, Clock, CheckCircle2, XCircle, Search, Calendar, Edit2, Save, X, Repeat, GitBranch } from "lucide-react";
 import { useState } from "react";
 import EmptyState from "./EmptyState";
 import type { Message } from "./MessageForm";
@@ -170,6 +170,18 @@ const MessageTimeline = ({ messages, onDeleteMessage, onEditMessage }: MessageTi
                             <Badge variant="destructive" className="gap-1">
                               <XCircle className="h-3 w-3" />
                               Failed
+                            </Badge>
+                          )}
+                          {msg.recurring?.enabled && (
+                            <Badge variant="outline" className="gap-1">
+                              <Repeat className="h-3 w-3" />
+                              {msg.recurring.frequency}
+                            </Badge>
+                          )}
+                          {msg.branching?.enabled && (
+                            <Badge variant="outline" className="gap-1">
+                              <GitBranch className="h-3 w-3" />
+                              {msg.branching.conditions.length} rule{msg.branching.conditions.length !== 1 ? 's' : ''}
                             </Badge>
                           )}
                           {msg.scheduledTime && (
